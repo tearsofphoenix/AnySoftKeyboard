@@ -63,7 +63,6 @@ import com.anysoftkeyboard.keyboards.GenericKeyboard;
 import com.anysoftkeyboard.keyboards.Keyboard;
 import com.anysoftkeyboard.keyboards.Keyboard.Key;
 import com.anysoftkeyboard.keyboards.KeyboardDimens;
-import com.anysoftkeyboard.keyboards.KeyboardSwitcher;
 import com.anysoftkeyboard.keyboards.views.preview.KeyPreviewsManager;
 import com.anysoftkeyboard.keyboards.views.preview.PreviewPopupTheme;
 import com.anysoftkeyboard.theme.KeyboardTheme;
@@ -92,6 +91,7 @@ public class AnyKeyboardViewBase extends View implements
      */
     // private Canvas mCanvas;
     protected final Paint mPaint;
+    @NonNull
     protected final KeyboardDimensFromTheme mKeyboardDimens = new KeyboardDimensFromTheme();
     // TODO: Let the PointerTracker class manage this pointer queue
     final PointerQueue mPointerQueue = new PointerQueue();
@@ -119,7 +119,6 @@ public class AnyKeyboardViewBase extends View implements
     // operation!
     private final KeyboardDrawOperation mDrawOperation;
     private final Map<TextWidthCacheKey, TextWidthCacheValue> mTextWidthCache = new ArrayMap<>();
-    protected KeyboardSwitcher mSwitcher;
     /**
      * Listener for {@link OnKeyboardActionListener}.
      */
@@ -164,6 +163,8 @@ public class AnyKeyboardViewBase extends View implements
     protected float mOriginalVerticalCorrection;
     // Main keyboard
     private AnyKeyboard mKeyboard;
+    protected String mNextAlphabetKeyboardName;
+    protected String mNextSymbolsKeyboardName;
     private String mKeyboardName;
 
     // Drawing
@@ -205,6 +206,9 @@ public class AnyKeyboardViewBase extends View implements
         mKeyRepeatInterval = 50;
 
         AnyApplication.getConfig().addChangedListener(this);
+
+        mNextAlphabetKeyboardName = getResources().getString(R.string.change_lang_regular);
+        mNextSymbolsKeyboardName = getResources().getString(R.string.change_symbols_regular);
     }
 
     protected static boolean isSpaceKey(final AnyKey key) {
@@ -724,7 +728,7 @@ public class AnyKeyboardViewBase extends View implements
         }
     }
 
-    public void setKeyboard(AnyKeyboard keyboard, float verticalCorrection) {
+    protected void setKeyboard(AnyKeyboard keyboard, float verticalCorrection) {
         mVerticalCorrection = verticalCorrection;
         mKeysIcons.clear();
         if (mKeyboard != null) {
@@ -762,24 +766,14 @@ public class AnyKeyboardViewBase extends View implements
         return mKeyboard;
     }
 
-    /**
-     * Attaches a keyboard to this view. The keyboard can be switched at any
-     * time and the view will re-layout itself to accommodate the keyboard.
-     *
-     * @param keyboard the keyboard to display in this view
-     * @see Keyboard
-     * @see #getKeyboard()
-     */
-    public final void setKeyboard(AnyKeyboard keyboard) {
-        setKeyboard(keyboard, mOriginalVerticalCorrection);
+    public final void setKeyboard(AnyKeyboard currentKeyboard, String nextAlphabetKeyboard, String nextSymbolsKeyboard) {
+        mNextAlphabetKeyboardName = nextAlphabetKeyboard;
+        if (TextUtils.isEmpty(mNextAlphabetKeyboardName)) mNextAlphabetKeyboardName = getResources().getString(R.string.change_lang_regular);
+        mNextSymbolsKeyboardName = nextSymbolsKeyboard;
+        if (TextUtils.isEmpty(mNextSymbolsKeyboardName)) mNextSymbolsKeyboardName = getResources().getString(R.string.change_symbols_regular);
+        setKeyboard(currentKeyboard, mOriginalVerticalCorrection);
     }
 
-    /**
-     * Sets the state of the shift key of the keyboard, if any.
-     *
-     * @param shifted whether or not to enable the state of the shift key
-     * @return true if the shift key state changed, false if there was no change
-     */
     public boolean setShifted(boolean shifted) {
         if (mKeyboard != null) {
             if (mKeyboard.setShifted(shifted)) {
@@ -791,8 +785,19 @@ public class AnyKeyboardViewBase extends View implements
         return false;
     }
 
+    public boolean setShiftLocked(boolean shiftLocked) {
+        AnyKeyboard keyboard = getKeyboard();
+        if (keyboard != null) {
+            if (keyboard.setShiftLocked(shiftLocked)) {
+                invalidateAllKeys();
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
-     * Returns the state of the shift key of the keyboard, if any.
+     * Returns the state of the shift key of the UI, if any.
      *
      * @return true if the shift is in a pressed state, false otherwise. If
      * there is no shift key on the keyboard or there is no keyboard
@@ -803,13 +808,6 @@ public class AnyKeyboardViewBase extends View implements
         return mKeyboard != null && mKeyboard.isShifted();
     }
 
-    /**
-     * Sets the state of the control key of the keyboard, if any.
-     *
-     * @param control whether or not to enable the state of the control key
-     * @return true if the control key state changed, false if there was no
-     * change
-     */
     public boolean setControl(boolean control) {
         if (mKeyboard != null) {
             if (mKeyboard.setControl(control)) {
@@ -1327,21 +1325,9 @@ public class AnyKeyboardViewBase extends View implements
                 else
                     return guessLabelForKey(KeyCodes.MODE_SYMOBLS);
             case KeyCodes.MODE_ALPHABET:
-                String langKeyText = null;
-                if (mSwitcher != null)//should show the next keyboard label, not a generic one.
-                    langKeyText = mSwitcher.peekNextAlphabetKeyboard();
-                if (langKeyText == null)
-                    return getResources().getString(R.string.change_lang_regular);
-                else
-                    return langKeyText;
+                return mNextAlphabetKeyboardName;
             case KeyCodes.MODE_SYMOBLS:
-                String symKeyText = null;
-                if (mSwitcher != null)//should show the next keyboard label, not a generic one.
-                    symKeyText = mSwitcher.peekNextSymbolsKeyboard();
-                if (symKeyText == null)
-                    return getResources().getString(R.string.change_symbols_regular);
-                else
-                    return symKeyText;
+                return mNextSymbolsKeyboardName;
             case KeyCodes.TAB:
                 return getContext().getText(R.string.label_tab_key);
             case KeyCodes.MOVE_HOME:
@@ -1510,6 +1496,7 @@ public class AnyKeyboardViewBase extends View implements
                 + getPaddingTop());
     }
 
+    @NonNull
     public KeyboardDimens getThemedKeyboardDimens() {
         return mKeyboardDimens;
     }
@@ -1764,8 +1751,6 @@ public class AnyKeyboardViewBase extends View implements
 
         mKeyboardActionListener = null;
         mKeyboard = null;
-
-        mSwitcher = null;
     }
 
     public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {

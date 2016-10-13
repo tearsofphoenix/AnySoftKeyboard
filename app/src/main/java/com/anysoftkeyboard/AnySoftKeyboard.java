@@ -16,7 +16,6 @@
 
 package com.anysoftkeyboard;
 
-import android.animation.LayoutTransition;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -35,7 +34,6 @@ import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.content.ContextCompat;
-import android.support.v4.view.ViewGroupCompat;
 import android.text.TextUtils;
 import android.util.SparseBooleanArray;
 import android.util.TypedValue;
@@ -71,7 +69,6 @@ import com.anysoftkeyboard.keyboards.KeyboardSwitcher;
 import com.anysoftkeyboard.keyboards.KeyboardSwitcher.NextKeyboardType;
 import com.anysoftkeyboard.keyboards.physical.HardKeyboardActionImpl;
 import com.anysoftkeyboard.keyboards.physical.MyMetaKeyKeyListener;
-import com.anysoftkeyboard.keyboards.views.AnyKeyboardView;
 import com.anysoftkeyboard.keyboards.views.CandidateView;
 import com.anysoftkeyboard.quicktextkeys.QuickTextKey;
 import com.anysoftkeyboard.quicktextkeys.QuickTextKeyFactory;
@@ -338,9 +335,9 @@ public abstract class AnySoftKeyboard extends AnySoftKeyboardClipboard implement
 
     @Override
     public View onCreateInputView() {
-        AnyKeyboardView inputView = (AnyKeyboardView) super.onCreateInputView();
+        View inputView = super.onCreateInputView();
 
-        inputView.setOnKeyboardActionListener(this);
+        getInputView().setOnKeyboardActionListener(this);
 
         return inputView;
     }
@@ -1239,7 +1236,7 @@ public abstract class AnySoftKeyboard extends AnySoftKeyboardClipboard implement
                 // user specifically asked for it
                 if ((getInputView() != null
                         && getInputView().isShifted()
-                        && !getInputView().getKeyboard().isShiftLocked()
+                        && !getCurrentAlphabetKeyboard().isShiftLocked()
                         && mShiftKeyState.isPressed()) || mAskPrefs.useBackword()) {
                     handleBackWord(ic);
                 } else {
@@ -1587,7 +1584,7 @@ public abstract class AnySoftKeyboard extends AnySoftKeyboardClipboard implement
     private void setKeyboardForView(AnyKeyboard currentKeyboard) {
         currentKeyboard.setCondensedKeys(mKeyboardInCondensedMode);
         if (getInputView() != null) {
-            getInputView().setKeyboard(currentKeyboard);
+            getInputView().setKeyboard(currentKeyboard, getKeyboardSwitcher().peekNextAlphabetKeyboard(), getKeyboardSwitcher().peekNextSymbolsKeyboard());
         }
     }
 
